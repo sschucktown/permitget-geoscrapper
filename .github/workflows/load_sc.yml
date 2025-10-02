@@ -1,9 +1,9 @@
 name: Load South Carolina Jurisdictions
 
 on:
-  workflow_dispatch:   # manual trigger from Actions tab
+  workflow_dispatch:
   schedule:
-    - cron: "0 3 * * 0"   # weekly run, Sunday 3 AM UTC
+    - cron: "0 3 * * 0"   # weekly run
 
 jobs:
   etl:
@@ -21,28 +21,18 @@ jobs:
       - name: Install GDAL + unzip + wget
         run: sudo apt-get update && sudo apt-get install -y gdal-bin unzip wget
 
-      - name: Download Census shapefiles
+      - name: Download Census counties shapefile
         run: |
-          # Counties direct from Census (works)
           wget --user-agent="Mozilla/5.0" https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
-
-          # Places from jsDelivr mirror (official Census file mirrored)
-          wget --user-agent="Mozilla/5.0" https://cdn.jsdelivr.net/gh/OpenDataDE/census-geojson@master/cb_2022_us_place_500k.zip
-
-      - name: Verify downloads
-        run: |
-          ls -lh *.zip
-          file *.zip
-
-      - name: Unzip shapefiles
-        run: |
           unzip -o cb_2022_us_county_500k.zip -d counties
-          unzip -o cb_2022_us_place_500k.zip -d places
 
-      - name: Convert shapefiles → GeoJSON
+      - name: Convert counties shapefile → GeoJSON
         run: |
           ogr2ogr -f GeoJSON counties.json counties/cb_2022_us_county_500k.shp
-          ogr2ogr -f GeoJSON places.json places/cb_2022_us_place_500k.shp
+
+      - name: Download Census places GeoJSON (direct, no unzip needed)
+        run: |
+          wget --user-agent="Mozilla/5.0" -O places.json https://www2.census.gov/geo/tiger/GENZ2022/geojson/cb_2022_us_place_500k.geojson
 
       - name: Install dependencies
         run: npm install @supabase/supabase-js
