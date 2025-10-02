@@ -1,7 +1,7 @@
 name: Load South Carolina Jurisdictions
 
 on:
-  workflow_dispatch:   # manual trigger from Actions tab
+  workflow_dispatch:   # run manually from Actions tab
   schedule:
     - cron: "0 3 * * 0"   # every Sunday at 3 AM UTC
 
@@ -18,13 +18,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install GDAL + unzip
-        run: sudo apt-get update && sudo apt-get install -y gdal-bin unzip curl
+      - name: Install GDAL + unzip + wget
+        run: sudo apt-get update && sudo apt-get install -y gdal-bin unzip wget
 
       - name: Download Census shapefiles
         run: |
-          curl -L -A "Mozilla/5.0" -O https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
-          curl -L -A "Mozilla/5.0" -O https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.zip
+          wget --user-agent="Mozilla/5.0" https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
+          wget --user-agent="Mozilla/5.0" https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.zip
 
       - name: Verify downloads
         run: |
