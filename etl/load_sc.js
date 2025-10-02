@@ -3,55 +3,53 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const stateMap = { "45": "SC" }; // South Carolina
-
-async function loadJurisdictions(url, type) {
+async function loadAndInsert(url, type, stateFips, stateAbbr) {
   console.log(`Fetching: ${url}`);
-  const res = await fetch(url + "&resultRecordCount=5000");
+  const res = await fetch(url);
   const geojson = await res.json();
 
   if (!geojson.features) {
-    console.error("❌ Unexpected response from Census API:");
-    console.error(JSON.stringify(geojson, null, 2));
+    console.error("❌ Unexpected response");
     return;
   }
 
-  console.log(`✅ Retrieved ${geojson.features.length} ${type}s`);
+  const scFeatures = geojson.features.filter(f => f.properties.STATEFP === stateFips);
+  console.log(`✅ Retrieved ${scFeatures.length} ${type}s for ${stateAbbr}`);
 
-  for (const feature of geojson.features) {
-    const { GEOID, NAME, STATE } = feature.properties || {};
-    if (!GEOID || !NAME) continue;
+  // Batch insert for efficiency
+  const rows = scFeatures.map(f => ({
+    geoid: f.properties.GEOID,
+    name: f.properties.NAME,
+    type,
+    state: stateAbbr,
+    authority: f.properties.NAME,
+    permit_url: null,
+    forms_url: null,
+    boundary: f.geometry
+  }));
 
-    const stateAbbr = stateMap[STATE] || STATE;
-
-    const { error } = await supabase.from("jurisdictions").upsert({
-      geoid: GEOID,
-      name: NAME,
-      type: type,
-      state: stateAbbr,
-      authority: NAME,
-      permit_url: null,
-      forms_url: null,
-      boundary: feature.geometry
-    });
-
-    if (error) {
-      console.error("Insert error:", error, NAME);
-    }
-  }
+  const { error } = await supabase.from("jurisdictions").upsert(rows);
+  if (error) console.error("Insert error:", error);
 }
 
 async function main() {
-  // All SC counties
-  await loadJurisdictions(
-    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/2/query?where=STATE=45&outFields=STATE,COUNTY,NAME,GEOID&outSR=4326&f=geojson",
-    "county"
+  const stateFips = "45";
+  const stateAbbr = "SC";
+
+  // Counties
+  await loadAndInsert(
+    "https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.json",
+    "county",
+    stateFips,
+    stateAbbr
   );
 
-  // All SC places (cities/towns)
-  await loadJurisdictions(
-    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_Census2010/MapServer/0/query?where=STATE=45&outFields=STATE,PLACE,NAME,GEOID&outSR=4326&f=geojson",
-    "city"
+  // Places (cities/towns)
+  await loadAndInsert(
+    "https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.json",
+    "city",
+    stateFips,
+    stateAbbr
   );
 }
 
