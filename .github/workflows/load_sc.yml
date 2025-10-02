@@ -40,4 +40,4 @@ jobs:
         run: node etl/load_sc.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPAB
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
