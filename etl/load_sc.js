@@ -13,8 +13,9 @@ function loadFromFile(filename, type, stateFips, stateAbbr) {
     return [];
   }
 
+  // Filter features by SC FIPS = 45
   const features = geojson.features.filter(f => f.properties.STATEFP === stateFips);
-  console.log(`✅ Found ${features.length} ${type}(s) for ${stateAbbr}`);
+  console.log(`📦 ${filename}: found ${features.length} ${type}(s) for ${stateAbbr}`);
 
   return features.map(f => ({
     geoid: f.properties.GEOID,
@@ -29,21 +30,23 @@ function loadFromFile(filename, type, stateFips, stateAbbr) {
 }
 
 async function main() {
-  const stateFips = "45"; // SC
+  const stateFips = "45"; // South Carolina
   const stateAbbr = "SC";
 
   const counties = loadFromFile("counties.json", "county", stateFips, stateAbbr);
   const places = loadFromFile("places.json", "city", stateFips, stateAbbr);
 
   const rows = [...counties, ...places];
-  console.log(`🚀 Upserting ${rows.length} jurisdictions into Supabase...`);
+  console.log(`🚀 Preparing to upsert ${rows.length} jurisdictions into Supabase...`);
 
-  const { error } = await supabase.from("jurisdictions").upsert(rows);
+  const { error, count } = await supabase.from("jurisdictions").upsert(rows, { count: "exact" });
   if (error) {
     console.error("❌ Insert error:", error);
     process.exit(1);
   }
 
+  console.log(`✅ Inserted/updated ${counties.length} counties`);
+  console.log(`✅ Inserted/updated ${places.length} places`);
   console.log("🏁 SC load complete!");
 }
 
