@@ -1,9 +1,9 @@
 name: Load South Carolina Jurisdictions
 
 on:
-  workflow_dispatch:   # run manually from Actions tab
+  workflow_dispatch:   # manual trigger from Actions tab
   schedule:
-    - cron: "0 3 * * 0"   # every Sunday at 3 AM UTC
+    - cron: "0 3 * * 0"   # weekly run, Sunday 3 AM UTC
 
 jobs:
   etl:
@@ -23,13 +23,16 @@ jobs:
 
       - name: Download Census shapefiles
         run: |
+          # Counties direct from Census (works)
           wget --user-agent="Mozilla/5.0" https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
-          wget --user-agent="Mozilla/5.0" https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.zip
+
+          # Places from jsDelivr mirror (official Census file mirrored)
+          wget --user-agent="Mozilla/5.0" https://cdn.jsdelivr.net/gh/OpenDataDE/census-geojson@master/cb_2022_us_place_500k.zip
 
       - name: Verify downloads
         run: |
-          ls -lh cb_2022_us_*.zip
-          file cb_2022_us_*.zip
+          ls -lh *.zip
+          file *.zip
 
       - name: Unzip shapefiles
         run: |
