@@ -1,23 +1,22 @@
-import fetch from "node-fetch";
+import fs from "fs";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-async function loadAndInsert(url, type, stateFips, stateAbbr) {
-  console.log(`Fetching: ${url}`);
-  const res = await fetch(url);
-  const geojson = await res.json();
-
+function loadFromFile(filename, type, stateFips, stateAbbr) {
+  const geojson = JSON.parse(fs.readFileSync(filename));
   if (!geojson.features) {
-    console.error("❌ Unexpected response");
-    return;
+    console.error("❌ No features in", filename);
+    return [];
   }
 
-  const scFeatures = geojson.features.filter(f => f.properties.STATEFP === stateFips);
-  console.log(`✅ Retrieved ${scFeatures.length} ${type}s for ${stateAbbr}`);
+  const features = geojson.features.filter(f => f.properties.STATEFP === stateFips);
+  console.log(`✅ Found ${features.length} ${type}(s) for ${stateAbbr}`);
 
-  // Batch insert for efficiency
-  const rows = scFeatures.map(f => ({
+  return features.map(f => ({
     geoid: f.properties.GEOID,
     name: f.properties.NAME,
     type,
@@ -27,30 +26,25 @@ async function loadAndInsert(url, type, stateFips, stateAbbr) {
     forms_url: null,
     boundary: f.geometry
   }));
-
-  const { error } = await supabase.from("jurisdictions").upsert(rows);
-  if (error) console.error("Insert error:", error);
 }
 
 async function main() {
-  const stateFips = "45";
+  const stateFips = "45"; // SC
   const stateAbbr = "SC";
 
-  // Counties
-  await loadAndInsert(
-    "https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.json",
-    "county",
-    stateFips,
-    stateAbbr
-  );
+  const counties = loadFromFile("counties.json", "county", stateFips, stateAbbr);
+  const places = loadFromFile("places.json", "city", stateFips, stateAbbr);
 
-  // Places (cities/towns)
-  await loadAndInsert(
-    "https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.json",
-    "city",
-    stateFips,
-    stateAbbr
-  );
+  const rows = [...counties, ...places];
+  console.log(`🚀 Upserting ${rows.length} jurisdictions into Supabase...`);
+
+  const { error } = await supabase.from("jurisdictions").upsert(rows);
+  if (error) {
+    console.error("❌ Insert error:", error);
+    process.exit(1);
+  }
+
+  console.log("🏁 SC load complete!");
 }
 
-main().then(() => console.log("🏁 SC load complete"));
+main();
