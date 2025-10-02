@@ -23,10 +23,10 @@ jobs:
 
       - name: Download Census shapefiles
         run: |
-          curl -L -o counties.zip https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
-          curl -L -o places.zip https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.zip
-          unzip counties.zip -d counties
-          unzip places.zip -d places
+          curl -L -O https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_county_500k.zip
+          curl -L -O https://www2.census.gov/geo/tiger/GENZ2022/shp/cb_2022_us_place_500k.zip
+          unzip cb_2022_us_county_500k.zip -d counties
+          unzip cb_2022_us_place_500k.zip -d places
 
       - name: Convert shapefiles → GeoJSON
         run: |
