@@ -6,6 +6,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ✅ Normalize geometry to MultiPolygon
+function normalizeToMultiPolygon(geometry) {
+  if (!geometry) return null;
+
+  if (geometry.type === "Polygon") {
+    return {
+      type: "MultiPolygon",
+      coordinates: [geometry.coordinates],
+    };
+  }
+  return geometry;
+}
+
 function loadFromFile(filename, type, stateFips, stateAbbr) {
   const geojson = JSON.parse(fs.readFileSync(filename));
   if (!geojson.features) {
@@ -14,10 +27,12 @@ function loadFromFile(filename, type, stateFips, stateAbbr) {
   }
 
   // Filter features by SC FIPS = 45
-  const features = geojson.features.filter(f => f.properties.STATEFP === stateFips);
+  const features = geojson.features.filter(
+    (f) => f.properties.STATEFP === stateFips
+  );
   console.log(`📦 ${filename}: found ${features.length} ${type}(s) for ${stateAbbr}`);
 
-  return features.map(f => ({
+  return features.map((f) => ({
     geoid: f.properties.GEOID,
     name: f.properties.NAME,
     type,
@@ -25,7 +40,7 @@ function loadFromFile(filename, type, stateFips, stateAbbr) {
     authority: f.properties.NAME,
     permit_url: null,
     forms_url: null,
-    boundary: f.geometry
+    boundary: normalizeToMultiPolygon(f.geometry), // ✅ ensure MultiPolygon
   }));
 }
 
@@ -39,7 +54,10 @@ async function main() {
   const rows = [...counties, ...places];
   console.log(`🚀 Preparing to upsert ${rows.length} jurisdictions into Supabase...`);
 
-  const { error, count } = await supabase.from("jurisdictions").upsert(rows, { count: "exact" });
+  const { error, count } = await supabase
+    .from("jurisdictions")
+    .upsert(rows, { count: "exact" });
+
   if (error) {
     console.error("❌ Insert error:", error);
     process.exit(1);
